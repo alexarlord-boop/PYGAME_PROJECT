@@ -128,31 +128,6 @@ def game_screen(screen_img, buttons, ev):
         screen.blit(screen_img, (w // 2 - 250, 50))
         pygame.display.flip()
 
-
-def start_screen(screen_img):  # заменен функцией game_screen()
-    global start
-    pygame.mouse.set_visible(True)
-    mouse_pos = (-1, -1)
-
-    while not start:
-
-        buttons_menu = Menu(w, h, 20, ['quit', 'new game'])
-
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                terminate()
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 1:
-                    mouse_pos = pygame.mouse.get_pos()
-
-        # for group in everything_on_screen:
-        # group.draw(screen)
-
-        buttons_menu.update(mouse_pos)
-        screen.blit(screen_img, (w // 3, h // 3))
-        pygame.display.flip()
-
-
 def pause_screen(screen_img):
     global pause, running
     pygame.mouse.set_visible(True)
@@ -181,30 +156,7 @@ def pause_screen(screen_img):
         pygame.display.flip()
 
 
-def gameover_screen(screen_img):  # заменен функцией game_screen()
-    global gameover, running
-    pygame.mouse.set_visible(True)
-    mouse_pos = (-1, -1)
-
-    buttons_menu = Menu(w, h, 20, ['quit', 'restart'])
-
-    while gameover:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                terminate()
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 1:
-                    mouse_pos = pygame.mouse.get_pos()
-
-        for group in everything_on_screen:
-            group.draw(screen)
-
-        buttons_menu.update(mouse_pos)
-
-        screen.blit(screen_img, (0, 0))
-        pygame.display.flip()
-
-    # CLASSES
+# CLASSES
 
 
 class Button:
