@@ -15,7 +15,7 @@ t = k + 1
 colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (200, 100, 0)]
 bright_colors = [(200, 0, 0), (0, 200, 0), (0, 0, 255), (170, 700, 0)]
 GRAVITY = 10
-ANIMATION_DELAY = 70
+ANIMATION_DELAY = 30
 ANIMATION_DELAY_2 = 140
 
 pygame.init()
@@ -41,11 +41,13 @@ hero_images = [pygame.transform.scale(load_img(f'x wing/wing{i}.png'), (k, k)) f
 # BLASTERS
 red_shot = pygame.transform.scale(load_img('blasterR.png'), (k, k))
 green_shot = pygame.transform.scale(load_img('blasterG.png'), (k, k))
-shots_images = [red_shot, green_shot]
+bfg = load_img('BFG.png')
+shots_images = [red_shot, green_shot, bfg]
 
 # GAME OBJECTS
 asteroids_images = [pygame.transform.scale(load_img(f'asteroids/aster{i}.png', -1), (50, 50)) for i in range(1, 7)]
 explosion_images = [pygame.transform.scale(load_img(f'explode/{i}.png', -1), (40, 40)) for i in range(1, 8)]
+bonus_images = [load_img(f'bonus{i}.png', -1) for i in range(1, 3)]
 # GAME SCREEN I.
 pause_img = load_img(f'screen_img/pause.png')
 gameover_img = load_img(f'screen_img/gameover.png')
@@ -63,7 +65,7 @@ hp_line = pygame.transform.scale(load_img(f'player_info/hp_line.png'), (100, 10)
 hp_border = pygame.transform.scale(load_img(f'player_info/hp_border.png'), (100, 10))
 
 # ANIMATION
-ANIMATION_FLY = [(pygame.transform.scale(load_img(f'fire/{i}.png'), (k, k)), ANIMATION_DELAY) for i in range(1, 6)]
+ANIMATION_FLY = [(pygame.transform.scale(load_img(f'fire/{i}.png'), (k, k)), ANIMATION_DELAY_2) for i in range(1, 6)]
 ANIMATION_EXPLODE = [(pygame.transform.scale(load_img(f'explode/{i}.png'), (50, 50)), ANIMATION_DELAY_2) for i in
                      range(1, 8)]
 
@@ -72,6 +74,10 @@ fire_s = pygame.mixer.Sound('data/sounds/FIRE1.wav')
 fire_s.set_volume(0.05)
 fire_2 = pygame.mixer.Sound('data/sounds/FIRE2_0.wav')
 fire_2.set_volume(0.05)
+fire_3 = pygame.mixer.Sound('data/sounds/FIRE3.wav')
+fire_3.set_volume(0.2)
+bonus = pygame.mixer.Sound('data/sounds/Bonus.wav')
+bonus.set_volume(0.2)
 
 explode_s = pygame.mixer.Sound('data/sounds/explode.wav')
 explode_s.set_volume(0.7)
@@ -85,8 +91,8 @@ ships = pygame.sprite.Group()
 all_sprites = pygame.sprite.Group()
 blaster_shots = pygame.sprite.Group()
 asteroids = pygame.sprite.Group()
-
-everything_on_screen = [ships, blaster_shots, asteroids, all_sprites]
+all_bonuses = pygame.sprite.Group()
+everything_on_screen = [ships, blaster_shots, asteroids, all_sprites, all_bonuses]
 
 pause = False
 gameover = False
@@ -128,6 +134,31 @@ def game_screen(screen_img, buttons, ev):
         screen.blit(screen_img, (w // 2 - 250, 50))
         pygame.display.flip()
 
+
+def start_screen(screen_img):  # заменен функцией game_screen()
+    global start
+    pygame.mouse.set_visible(True)
+    mouse_pos = (-1, -1)
+
+    while not start:
+
+        buttons_menu = Menu(w, h, 20, ['quit', 'new game'])
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                terminate()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    mouse_pos = pygame.mouse.get_pos()
+
+        # for group in everything_on_screen:
+        # group.draw(screen)
+
+        buttons_menu.update(mouse_pos)
+        screen.blit(screen_img, (w // 3, h // 3))
+        pygame.display.flip()
+
+
 def pause_screen(screen_img):
     global pause, running
     pygame.mouse.set_visible(True)
@@ -156,7 +187,30 @@ def pause_screen(screen_img):
         pygame.display.flip()
 
 
-# CLASSES
+def gameover_screen(screen_img):  # заменен функцией game_screen()
+    global gameover, running
+    pygame.mouse.set_visible(True)
+    mouse_pos = (-1, -1)
+
+    buttons_menu = Menu(w, h, 20, ['quit', 'restart'])
+
+    while gameover:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                terminate()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    mouse_pos = pygame.mouse.get_pos()
+
+        for group in everything_on_screen:
+            group.draw(screen)
+
+        buttons_menu.update(mouse_pos)
+
+        screen.blit(screen_img, (0, 0))
+        pygame.display.flip()
+
+    # CLASSES
 
 
 class Button:
@@ -185,7 +239,7 @@ class Button:
         # print(mpos)
         self.mouse_pos = mpos
         if mpos[0] in range(self.x, self.x + self.a) and mpos[1] in range(self.y, self.y + self.b):
-            print(self.mouse_pos)
+            # print(self.mouse_pos)
             return True
 
         else:
@@ -234,7 +288,7 @@ class MeasureLine:
         self.base = 100
         self.k = k_t
 
-        self.x = x - w_size // 2
+        self.x = x - w_size // 2 - 50
         self.y = y - 10
         self.w = w_size
         self.h = h_size
@@ -247,13 +301,17 @@ class MeasureLine:
         self.surf.fill(self.color)
 
     def update(self, new_number):
-
-        if self.orientation == 'horizontal':
-            self.surf = pygame.transform.scale(self.surf, (self.w * new_number * self.k // self.base, self.h))
-
+        if new_number < 0:
+            pass
         else:
-            self.surf = pygame.transform.scale(self.surf,
-                                               (self.w, self.h * new_number * self.k // self.base))
+            if self.orientation == 'horizontal':
+                self.surf = pygame.transform.scale(self.surf, (new_number * self.k, self.h))
+
+            else:
+                self.surf = pygame.transform.scale(self.surf,
+                                                   (self.w, self.h * new_number * self.k // self.base))
+
+        self.draw()
 
     def draw(self):
         screen.blit(self.surf, (self.rect[0], self.rect[1]))
@@ -270,16 +328,23 @@ class Hero(pygame.sprite.Sprite):
         self.rect.x = w / 2 - self.rect[2] / 2
         self.rect.y = h - k * 2
         self.pos = (self.rect.x, self.rect.y)
+
         self.hp = 100
         self.hp_l = MeasureLine(w // 2, h - 10, self.hp, 10, 1, 'red')
         self.hitted = False
         self.hits = 0
 
-        self.shield = 75
-        self.sp_l = MeasureLine(w // 2 + 105, h - 10, self.shield, 10, 1, 'blue')
+        self.shield = 1
+        self.sp_l = MeasureLine(w // 2 + 105, h - 10, 75, 10, 1, 'blue')
+
+        self.bonus_type = ''
+        self.bonus_points = 1
+        self.bonus_l = MeasureLine(90, h - 100, 10, 100, 1, 'green', 'vert')
+
+        self.dest_way = MeasureLine(70, h - 100, 10, 100, 1, 'red', 'vert')
 
         self.direction = direction
-        self.speed = 3
+        self.speed = 4
         self.shots = []
 
         self.heroAnim = pyganim.PygAnimation(ANIMATION_FLY)
@@ -289,7 +354,7 @@ class Hero(pygame.sprite.Sprite):
         self.heroAnimEx.play()
 
         blaster_shots.add(self.shots)
-        # ships.add(self)
+        ships.add(self)
 
     def move(self, pressed):
         if bool(sum(pressed)) is False:
@@ -312,16 +377,38 @@ class Hero(pygame.sprite.Sprite):
             self.rect.y += self.speed
             self.update(0)
 
-        for a_elem in asteroids:
-            if a_elem.hit_ship:
-                continue
-            if pygame.sprite.collide_rect(self, a_elem):
-                self.take_damage(a_elem.damage)
-                a_elem.hit_ship = True
-                a_elem.take_damage(5)
+        collided_sp = pygame.sprite.spritecollide(self, asteroids, False)
+        collided_gp = pygame.sprite.groupcollide(blaster_shots, asteroids, False, False)
+
+        if collided_sp:
+            if collided_sp[0].hit_ship is False:
+                self.take_damage(collided_sp[0].damage)
+                collided_sp[0].hit_ship = True
+                collided_sp[0].take_damage(5)
+
+        for elem in collided_gp.values():
+            # print(elem[0].strength)
+            if elem[0].b_type_hit == 2:
+                self.inc_total_health(1)
+
+    def inc_total_health(self, point):
+        if self.hp >= 100:
+            pass
+        else:
+            self.hp += point
 
     def reload(self, c_type):
-        new_shot = Shot((self.rect.x, self.rect.y), c_type)
+
+        if c_type == 2:
+            new_shot = Shot((self.rect.x + self.rect[2] // 2 - 50, self.rect.y), c_type, 7)
+            self.bonus_points -= 20
+            if self.bonus_points <= 0:
+                self.bonus_points = 1
+                self.bonus_type = ''
+
+        else:
+            new_shot = Shot((self.rect.x, self.rect.y), c_type, 19)
+
         self.shots.append(new_shot)
         blaster_shots.add(new_shot)
 
@@ -335,17 +422,18 @@ class Hero(pygame.sprite.Sprite):
 
     def take_damage(self, heatpoint):
         global gameover
-        if self.shield > 0:
+        if self.shield > 2:
             self.shield -= heatpoint
         else:
-            self.hp -= heatpoint
-            droid_s[random.randint(0, 1)].play()
+            if heatpoint != 0:
+                self.hp -= heatpoint
+                droid_s[0].play()
 
         self.hitted = True
         self.hits += 1
         if self.shield < 0:
-            droid_s[random.randint(0, 1)].play()
-            self.shield = 0
+            droid_s[1].play()
+            self.shield = 1
             self.update()
         # print(f'HERO -{heatpoint}')
         if self.hp <= 0:
@@ -363,13 +451,67 @@ class Hero(pygame.sprite.Sprite):
             self.image = hero_images[arg].copy()
 
         self.sp_l.update(self.shield)
-        self.sp_l.draw()
+        # self.sp_l.draw()
         self.hp_l.update(self.hp)
-        self.hp_l.draw()
+        # self.hp_l.draw()
+        self.bonus_l.update(self.bonus_points)
+        # self.bonus_l.draw()
+        self.dest_way.draw()
+
+        # print(self.shield)
+
+
+class Bonus(pygame.sprite.Sprite):
+    def __init__(self, b_type, bonus, target):
+        global w, h, hero, bonus_images
+        super().__init__()
+        self.image = bonus_images[b_type]
+        self.rect = self.image.get_rect()
+        self.rect.x = random.randint(100, 900)
+        self.rect.y = -10
+        self.speed = 3
+
+        self.bonus = bonus
+        self.target = target
+        all_bonuses.add(self)
+
+    def move(self):
+        if self.rect.y >= h:
+            self.kill()
+        else:
+            collided_sp = pygame.sprite.spritecollide(self, ships, False)
+            if collided_sp:
+                bonus.play()
+                self.kill()
+                # функции для корабля (бонусы)
+
+        self.rect.y += self.speed
+
+    def bonus_call(self):
+        if self.bonus == 'BFG':  # BFG !!!
+            # self.target.reload(2)
+            self.target.bonus_type = self.bonus
+            self.target.bonus_points = 100
+
+        if self.bonus == 'Shield':
+            self.target.bonus_type = self.bonus
+            self.target.shield = 75
+
+            # print(self.target.shield)
+            # self.target.sp_l.update(self.target.shield)
+
+        if self.bonus == 'BFB':
+            pass
+
+    def update(self):
+        if pygame.sprite.collide_rect(self, self.target):
+            # print('bonus call', self.target.bonus_points, self.bonus, sep='\n')
+            self.bonus_call()
+        self.move()
 
 
 class Shot(pygame.sprite.Sprite):
-    def __init__(self, ship_pos, c_type):
+    def __init__(self, ship_pos, c_type, speed):
         super().__init__()
         self.image = shots_images[c_type]
         self.rect = self.image.get_rect()
@@ -377,27 +519,36 @@ class Shot(pygame.sprite.Sprite):
         self.rect.y = ship_pos[1] + 20
         self.mask = pygame.mask.from_surface(self.image)
 
-        self.speed = 19
+        self.speed = speed
         self.blasted = False
         self.c_type = c_type
         if self.c_type == 0:
             self.damage = 10
         elif self.c_type == 1:
             self.damage = 20
+        elif self.c_type == 2:
+            self.damage = 1000
 
         blaster_shots.add(self)
 
     def move(self, dir_k):
         if self.blasted:
             self.kill()
-        for a_elem in asteroids:
-            if pygame.sprite.collide_rect(self, a_elem):
-                a_elem.take_damage(self.damage)
+
+        collided_sp = pygame.sprite.spritecollide(self, asteroids, False)
+        if collided_sp:
+            if self.c_type != 2:
                 self.blasted = True
                 self.damage = 0
-                # elem.AnimEx.blit(elem.image, (0, 0))
 
-        if self.rect.y <= 0:
+        # for a_elem in asteroids:
+        #    if pygame.sprite.collide_rect(self, a_elem):
+        #        a_elem.take_damage(self.damage)
+        #        self.blasted = True
+        #        self.damage = 0
+        # elem.AnimEx.blit(elem.image, (0, 0))
+
+        if self.rect.y <= -70:
             self.damage = 0
             self.kill()
         else:
@@ -420,10 +571,11 @@ class Asteroid(pygame.sprite.Sprite):
         # self.surf.set_alpha(0)
 
         self.speed = random.randint(1, 4)
-        self.strength = random.randint(16, 40)
-        self.damage = 30
+        self.strength = random.randint(30, 40)
+        self.damage = random.randint(10, 20)
 
         self.timer = 0
+        self.b_type_hit = -1
         self.hitted = False
         self.hit_ship = False
 
@@ -433,24 +585,32 @@ class Asteroid(pygame.sprite.Sprite):
         asteroids.add(self)
 
     def move(self):
-        if self.rect.y >= h + k:
+        if self.rect.y >= h + 20:
             self.kill()
+
+        collided_sp = pygame.sprite.spritecollide(self, blaster_shots, False)
+
+        if collided_sp:  # вместо цикла на проверку попадания
+            self.take_damage(collided_sp[0].damage)
+            self.b_type_hit = collided_sp[0].c_type
+            # print(collided_sp[0].damage)
         else:
             self.rect.y += self.speed
 
     def take_damage(self, heatpoint):
         self.strength -= heatpoint
         self.hitted = True
-        # print(f'ASTEROID -{heatpoint}')
+        if self.strength <= 0:
+            self.strength = 0
+            self.damage = 0
 
     def update(self):
         self.move()
 
-        # print(self.timer)
-        if self.strength <= 0:
+        if self.strength == 0:
             self.timer += 1
-
             self.AnimEx.blit(self.image, (self.rect[2] // 2 - 25, self.rect[3] // 2 - 25))
+
             if self.timer >= 50:
                 self.kill()
 
@@ -474,18 +634,15 @@ class AsteroidWave:
 # MAIN
 
 UPDATEENEMY = pygame.USEREVENT + 1
-PUPS = pygame.USEREVENT + 2
-
 
 clock = pygame.time.Clock()
 pygame.time.set_timer(UPDATEENEMY, 5000)
-# pygame.time.set_timer(PUPS, 10000)
 fps = 60
 running = True
 shoot = False
 
 
-def update_lvl(lvl_data):
+def update_lvl(lvl_data, target):
     asteroid_wave_is_set = False
     endgame = False
     try:
@@ -493,6 +650,12 @@ def update_lvl(lvl_data):
         print(fase)
         if fase == 'a':
             asteroid_wave_is_set = True
+        elif fase == 'b1':
+            a = Bonus(0, 'BFG', target)
+
+        elif fase == 'b2':
+            b = Bonus(1, 'Shield', target)
+
         elif fase == '-':
             pass
         elif fase == 'X':
@@ -506,13 +669,11 @@ def update_lvl(lvl_data):
 def prepare_field():
     pygame.mixer.music.load('data/sounds/theme.mp3')
     pygame.mixer.music.set_volume(0.1)
-    pygame.mixer.music.play(2)
+    pygame.mixer.music.play(10)
 
     for e_elem in everything_on_screen:
         for sprite in e_elem:
             sprite.kill()
-            # print('del')
-    # screen.fill((0, 0, 0))
 
     hero = Hero(hero_images, 1)
     a_wave = AsteroidWave()
@@ -521,8 +682,10 @@ def prepare_field():
 
 def game_loop():
     global pause, running, start
-
-    with open('data/levels/test.txt') as f:  # загрузка событий уровня
+    # random.randint(1, 3)
+    level_n = random.randint(1, 3)
+    print('Level: ',level_n)
+    with open(f'data/levels/{level_n}.txt') as f:  # загрузка событий уровня
         data = f.read().split(',')
         way_l = len(data)
         fase_n = len(data)
@@ -530,7 +693,6 @@ def game_loop():
 
     hero, a_wave = prepare_field()  # инициализация основных объектов
     ships.add(hero)
-    dest_way = MeasureLine(20, h - 100, 10, 100, 1, 'red', 'vert')
 
     while running:  # главный игровой цикл
 
@@ -544,12 +706,12 @@ def game_loop():
                 terminate()
 
             elif event.type == pygame.USEREVENT + 1:
-                data = update_lvl(lvl)  # загрузка данных о фазе уровня
+                data = update_lvl(lvl, hero)  # загрузка данных о фазе уровня
                 if way_l == 0:
                     pass
                 else:
                     way_l -= 1
-                dest_way.update(100 // fase_n * way_l)
+                hero.dest_way.update(100 // fase_n * way_l)
 
                 aster, to_endgame = data[0], data[1]  # создание объектов фазы уровня
                 a_wave.create(aster)
@@ -567,6 +729,10 @@ def game_loop():
                 elif event.button == 1:
                     fire_s.play()
                     hero.reload(0)
+                elif event.button == 2:
+                    if hero.bonus_points > 1:
+                        fire_3.play()
+                        hero.reload(2)
 
         # обработка остальных событий
         if not start:
@@ -580,20 +746,17 @@ def game_loop():
             # game_screen(pause_img, ['quit', 'restart', 'resume'], pause)
 
         elif gameover:
-            # gameover_screen(gameover_img)
             game_screen(gameover_img, ['quit', 'restart'], gameover)
 
         pygame.mouse.set_visible(False)
 
         hero.move(pressed)
-        hero.update()
         hero.shooting()
-        a_wave.update()
-
-        dest_way.draw()
 
         for group in everything_on_screen:
             group.draw(screen)
+            for ev_elem in group:
+                ev_elem.update()
 
         pygame.display.flip()  # смена кадра
 
